@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="it" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Abitudini & Serie Settimanali</title>
+    
+    <link rel="manifest" href="manifest.json">
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+</script> 
+
+    <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        slate: {
+                            850: '#131c31',
+                            900: '#0f172a',
+                            950: '#070b14',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #070b14;
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+
+        h1, h2, h3, h4, .font-display {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        /* Subtle glassmorphism card styling */
+        .glass-card {
+            background: rgba(15, 23, 42, 0.78);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-card-hover {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card-hover:hover {
+            border-color: rgba(99, 102, 241, 0.35);
+            transform: translateY(-2px);
+            box-shadow: 0 16px 36px -10px rgba(79, 70, 229, 0.18);
+        }
+
+        /* Habit Check Button Micro-Animations */
+        .habit-check-btn {
+            transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .habit-check-btn:hover {
+            transform: scale(1.08);
+        }
+        .habit-check-btn:active {
+            transform: scale(0.92);
+        }
+        
+        @keyframes popCheck {
+            0% { transform: scale(0.8); }
+            50% { transform: scale(1.18); }
+            100% { transform: scale(1); }
+        }
+        .animate-pop {
+            animation: popCheck 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        /* Flame Pulse Animation */
+        @keyframes flamePulse {
+            0%, 100% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.5)); }
+            50% { transform: scale(1.12) rotate(3deg); filter: drop-shadow(0 0 12px rgba(251, 146, 60, 0.85)); }
+        }
+        .flame-glow {
+            display: inline-block;
+            animation: flamePulse 2.4s infinite ease-in-out;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+
+        /* Highlight column for Today */
+        .today-col-highlight {
+            background: linear-gradient(180deg, rgba(99, 102, 241, 0.14) 0%, rgba(99, 102, 241, 0.04) 100%);
+            border-left: 1px solid rgba(99, 102, 241, 0.25);
+            border-right: 1px solid rgba(99, 102, 241, 0.25);
+        }
+    </style>
+</head>
+<body class="min-h-screen selection:bg-indigo-500 selection:text-white pb-16">
+
+    <!-- Background Ambient Glows -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        <div class="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-[120px]"></div>
+        <div class="absolute top-1/3 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-[130px]"></div>
+        <div class="absolute bottom-0 left-1/3 w-80 h-80 bg-fuchsia-600/10 rounded-full blur-[120px]"></div>
+    </div>
+
+    <!-- Top Navigation / Header -->
+    <header class="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                
+                <!-- Brand & Title -->
+                <div class="flex items-center gap-3.5">
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-emerald-400 p-[1px] shadow-lg shadow-indigo-500/20">
+                        <div class="w-full h-full bg-slate-950 rounded-2xl flex items-center justify-center">
+                            <i data-lucide="flame" class="w-6 h-6 text-indigo-400"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2.5">
+                            <h1 class="text-xl sm:text-2xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
+                                HabitFlow Pro
+                            </h1>
+                            <span class="text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                                Serie Settimanali
+                            </span>
+                        </div>
+                        <p id="currentDateDisplay" class="text-xs sm:text-sm text-slate-400 mt-0.5">
+                            Caricamento data...
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Action Controls -->
+                <div class="flex flex-wrap items-center gap-2.5 sm:gap-3">
+                    <!-- Day selector for testing/simulating active day -->
+                    <div class="flex items-center gap-2 bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-1.5 text-xs">
+                        <i data-lucide="calendar-clock" class="w-4 h-4 text-indigo-400"></i>
+                        <span class="text-slate-400 hidden sm:inline">Giorno attivo:</span>
+                        <select id="activeDaySelect" class="bg-transparent text-slate-200 font-semibold focus:outline-none cursor-pointer pr-1">
+                            <option value="0" class="bg-slate-900">Lunedì</option>
+                            <option value="1" class="bg-slate-900">Martedì</option>
+                            <option value="2" class="bg-slate-900">Mercoledì</option>
+                            <option value="3" class="bg-slate-900">Giovedì</option>
+                            <option value="4" class="bg-slate-900">Venerdì</option>
+                            <option value="5" class="bg-slate-900">Sabato</option>
+                            <option value="6" class="bg-slate-900">Domenica</option>
+                        </select>
+                    </div>
+
+                    <!-- Reset Demo Data Button -->
+                    <button id="resetDemoBtn" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-700/80 transition-all hover:text-white active:scale-95" title="Ripristina le abitudini dimostrative predefinite">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4 text-amber-400"></i>
+                        <span>Ripristina Dati Demo</span>
+                    </button>
+
+                    <!-- New Habit Button -->
+                    <button id="openAddModalBtn" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 shadow-lg shadow-indigo-600/25 transition-all active:scale-95">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>Nuova Abitudine</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-8">
+
+        <!-- 1. OVERVIEW STATS CARDS -->
+        <section aria-label="Panoramica Statistiche" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            
+            <!-- Card 1: Total Active Habits -->
+            <div class="glass-card glass-card-hover rounded-2xl p-5 relative overflow-hidden">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Abitudini Attive</p>
+                        <div class="flex items-baseline gap-2 mt-2">
+                            <h2 id="statTotalHabits" class="text-3xl font-extrabold text-white font-display">0</h2>
+                            <span id="statTotalTargetWeekly" class="text-xs text-slate-400 font-medium">/ 0 check target sett.</span>
+                        </div>
+                    </div>
+                    <div class="w-11 h-11 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                        <i data-lucide="layers" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+                    <span>Categorie monitorate</span>
+                    <span id="statCategoriesCount" class="font-semibold text-indigo-300">0 categorie</span>
+                </div>
+            </div>
+
+            <!-- Card 2: Today's Completion Percentage -->
+            <div class="glass-card glass-card-hover rounded-2xl p-5 relative overflow-hidden">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <div class="flex items-center gap-1.5">
+                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Completamento Oggi</p>
+                            <span id="statTodayBadgeName" class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Mer</span>
+                        </div>
+                        <div class="flex items-baseline gap-2 mt-2">
+                            <h2 id="statTodayPercent" class="text-3xl font-extrabold text-emerald-400 font-display">0%</h2>
+                            <span id="statTodayFraction" class="text-xs text-slate-400 font-medium">(0/0 completate)</span>
+                        </div>
+                    </div>
+                    <div class="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                        <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <!-- Progress Bar -->
+                <div class="mt-4">
+                    <div class="w-full h-2.5 bg-slate-800/90 rounded-full overflow-hidden p-0.5 border border-slate-700/50">
+                        <div id="statTodayProgressBar" class="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500 ease-out" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3: Longest Current Streak -->
+            <div class="glass-card glass-card-hover rounded-2xl p-5 relative overflow-hidden">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Serie Massima Attuale</p>
+                        <div class="flex items-baseline gap-2 mt-2">
+                            <span class="text-2xl flame-glow">🔥</span>
+                            <h2 id="statLongestStreak" class="text-3xl font-extrabold text-amber-400 font-display">0 giorni</h2>
+                        </div>
+                    </div>
+                    <div class="w-11 h-11 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                        <i data-lucide="trophy" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                    <span class="text-slate-400">Leader:</span>
+                    <span id="statLongestStreakHabit" class="font-semibold text-amber-300 truncate max-w-[170px]">—</span>
+                </div>
+            </div>
+
+            <!-- Card 4: Weekly Success Rate -->
+            <div class="glass-card glass-card-hover rounded-2xl p-5 relative overflow-hidden">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Tasso di Successo Sett.</p>
+                        <div class="flex items-baseline gap-2 mt-2">
+                            <h2 id="statWeeklySuccess" class="text-3xl font-extrabold text-violet-400 font-display">0%</h2>
+                            <span id="statWeeklyCheckCount" class="text-xs text-slate-400 font-medium">0 check totali</span>
+                        </div>
+                    </div>
+                    <div class="w-11 h-11 rounded-xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center text-violet-400">
+                        <i data-lucide="trending-up" class="w-5 h-5"></i>
+                    </div>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                    <span class="text-slate-400">Obiettivo settimanale</span>
+                    <span id="statWeeklyStatusText" class="font-semibold text-violet-300">In linea</span>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- 2. DAILY & WEEKLY HABIT GRID -->
+        <section class="glass-card rounded-2xl overflow-hidden border border-slate-800/90">
+            <!-- Section Header & Filter Bar -->
+            <div class="p-5 sm:p-6 border-b border-slate-800/80 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                    <div class="flex items-center gap-2.5">
+                        <h2 class="text-lg sm:text-xl font-bold text-white font-display">Griglia Abitudini Settimanale</h2>
+                        <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 font-medium">
+                            Lun — Dom
+                        </span>
+                    </div>
+                    <p class="text-xs sm:text-sm text-slate-400 mt-1">
+                        Clicca sulle caselle giornaliere per registrare il completamento e aggiornare le tue serie in tempo reale.
+                    </p>
+                </div>
+
+                <!-- Filters & Quick Complete Today -->
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <!-- Category Filter Pills -->
+                    <div id="categoryFilterContainer" class="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800 overflow-x-auto max-w-full">
+                        <button data-category="all" class="cat-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition-all">
+                            Tutte
+                        </button>
+                    </div>
+
+                    <!-- Quick Check All Today -->
+                    <button id="completeAllTodayBtn" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition-all active:scale-95">
+                        <i data-lucide="check-check" class="w-4 h-4"></i>
+                        <span>Completa Oggi</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Responsive Table Wrapper -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[760px]">
+                    <thead>
+                        <tr id="habitTableHeaderRow" class="border-b border-slate-800/80 bg-slate-900/50 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                            <!-- Populated dynamically via JS to highlight Today column -->
+                        </tr>
+                    </thead>
+                    <tbody id="habitTableBody" class="divide-y divide-slate-800/60 text-sm">
+                        <!-- Populated dynamically via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Empty State (hidden when habits exist) -->
+            <div id="emptyHabitsState" class="hidden py-14 px-4 text-center">
+                <div class="w-14 h-14 rounded-2xl bg-slate-800/80 border border-slate-700 mx-auto flex items-center justify-center text-slate-400 mb-3">
+                    <i data-lucide="calendar-plus" class="w-7 h-7"></i>
+                </div>
+                <h3 class="text-base font-bold text-white">Nessuna abitudine trovata</h3>
+                <p class="text-xs text-slate-400 max-w-md mx-auto mt-1">
+                    Non ci sono abitudini in questa categoria oppure hai rimosso tutte le voci. Aggiungi una nuova abitudine o ripristina i dati demo.
+                </p>
+                <button id="emptyAddHabitBtn" class="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-all">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    <span>Crea Prima Abitudine</span>
+                </button>
+            </div>
+
+            <!-- Footer Legend -->
+            <div class="px-5 py-3.5 bg-slate-950/50 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
+                <div class="flex flex-wrap items-center gap-4">
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded bg-indigo-500/30 border border-indigo-500 inline-block"></span>
+                        Colonna evidenziata = Giorno Attivo ("Oggi")
+                    </span>
+                    <span class="inline-flex items-center gap-1.5">
+                        <span>🔥</span>
+                        Serie calcolata con lo storico consecutivo + settimana corrente
+                    </span>
+                </div>
+                <div id="weeklyGoalCompletedSummary" class="font-medium text-slate-300">
+                    0 obiettivi settimanali raggiunti
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. INTERACTIVE WEEKLY STREAK & PROGRESS CHARTS -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Chart 1: Daily Completions vs Target (Lun - Dom) -->
+            <div class="lg:col-span-7 glass-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="bar-chart-3" class="w-5 h-5 text-indigo-400"></i>
+                            <h3 class="text-base sm:text-lg font-bold text-white font-display">
+                                Andamento Giornaliero (Lun - Dom)
+                            </h3>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-0.5">
+                            Abitudini completate ogni giorno rispetto al totale giornaliero e tasso percentuale
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs">
+                        <span class="inline-flex items-center gap-1.5 text-slate-300">
+                            <span class="w-3 h-3 rounded-sm bg-indigo-500 inline-block"></span>
+                            Completate
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 text-slate-300">
+                            <span class="w-3 h-1 bg-emerald-400 inline-block rounded-full"></span>
+                            Target Giornaliero
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Canvas Container -->
+                <div class="relative w-full h-72 sm:h-80">
+                    <canvas id="weeklyProgressChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 2: Current Streak vs Best Record Horizontal Bar Chart -->
+            <div class="lg:col-span-5 glass-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="flame" class="w-5 h-5 text-amber-400"></i>
+                            <h3 class="text-base sm:text-lg font-bold text-white font-display">
+                                Serie Attuale vs Record
+                            </h3>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-0.5">
+                            Confronto in giorni consecutivi per ciascuna abitudine
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs">
+                        <span class="inline-flex items-center gap-1.5 text-slate-300">
+                            <span class="w-3 h-3 rounded-sm bg-amber-500 inline-block"></span>
+                            Serie Attuale
+                        </span>
+                        <span class="inline-flex items-center gap-1.5 text-slate-300">
+                            <span class="w-3 h-3 rounded-sm bg-slate-600 inline-block"></span>
+                            Record
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Canvas Container -->
+                <div class="relative w-full h-72 sm:h-80">
+                    <canvas id="streakComparisonChart"></canvas>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- MODAL: ADD NEW HABIT -->
+    <div id="addHabitModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+        <div class="glass-card w-full max-w-md rounded-2xl border border-slate-700/80 shadow-2xl overflow-hidden animate-pop">
+            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-white font-display">Nuova Abitudine</h3>
+                </div>
+                <button id="closeAddModalBtn" class="text-slate-400 hover:text-white p-1 rounded-lg transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="addHabitForm" class="p-6 space-y-4">
+                <!-- Habit Name -->
+                <div>
+                    <label for="habitNameInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                        Nome dell'Abitudine *
+                    </label>
+                    <input type="text" id="habitNameInput" required maxlength="45" placeholder="Es. Meditazione Mattutina 10m" 
+                        class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
+                </div>
+
+                <!-- Category & Emoji Icon -->
+                <div class="grid grid-cols-2 gap-3.5">
+                    <div>
+                        <label for="habitCategoryInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                            Categoria
+                        </label>
+                        <select id="habitCategoryInput" class="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="Fitness">🏋️ Fitness</option>
+                            <option value="Nutrizione">🥗 Nutrizione</option>
+                            <option value="Studio">📚 Studio & Lavoro</option>
+                            <option value="Musica">🎸 Musica & Arte</option>
+                            <option value="Benessere">💧 Benessere</option>
+                            <option value="Mindfulness">🧘 Mindfulness</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="habitIconInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                            Icona Emoji
+                        </label>
+                        <select id="habitIconInput" class="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="🔥">🔥 Fuoco</option>
+                            <option value="🏋️">🏋️ Pesi / Palestra</option>
+                            <option value="🥗">🥗 Nutrizione / Macro</option>
+                            <option value="📚">📚 Studio / Lettura</option>
+                            <option value="🎸">🎸 Chitarra / Musica</option>
+                            <option value="💧">💧 Acqua / Idratazione</option>
+                            <option value="🧘">🧘 Meditazione</option>
+                            <option value="💻">💻 Deep Work / Codice</option>
+                            <option value="🏃">🏃 Corsa / Cardio</option>
+                            <option value="🌙">🌙 Sonno Regolare</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Target Days per week & Color Theme -->
+                <div class="grid grid-cols-2 gap-3.5">
+                    <div>
+                        <label for="habitTargetInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                            Target Settimanale
+                        </label>
+                        <select id="habitTargetInput" class="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="7" selected>7 giorni / sett. (Ogni giorno)</option>
+                            <option value="6">6 giorni / sett.</option>
+                            <option value="5">5 giorni / sett.</option>
+                            <option value="4">4 giorni / sett.</option>
+                            <option value="3">3 giorni / sett.</option>
+                            <option value="2">2 giorni / sett.</option>
+                            <option value="1">1 giorno / sett.</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="habitColorInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                            Colore Tema
+                        </label>
+                        <select id="habitColorInput" class="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="emerald">🟢 Smeraldo</option>
+                            <option value="indigo">🟣 Indaco</option>
+                            <option value="amber">🟠 Ambra</option>
+                            <option value="cyan">🔵 Ciano</option>
+                            <option value="rose">🔴 Rosa / Corallo</option>
+                            <option value="violet">🟣 Viola</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="pt-3 flex items-center justify-end gap-2.5 border-t border-slate-800">
+                    <button type="button" id="cancelAddModalBtn" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 transition-colors">
+                        Annulla
+                    </button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 shadow-lg shadow-indigo-600/30 transition-all">
+                        Salva Abitudine
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: CONFIRMATION DIALOG (Replaces native confirm/alert) -->
+    <div id="confirmModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+        <div class="glass-card w-full max-w-sm rounded-2xl border border-slate-700/80 p-6 shadow-2xl animate-pop">
+            <div class="w-11 h-11 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-4">
+                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+            </div>
+            <h3 id="confirmModalTitle" class="text-base font-bold text-white font-display">Conferma Azione</h3>
+            <p id="confirmModalMessage" class="text-xs text-slate-300 mt-1.5 leading-relaxed">
+                Sei sicuro di voler procedere?
+            </p>
+            <div class="mt-6 flex items-center justify-end gap-2.5">
+                <button id="confirmModalCancelBtn" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 transition-colors">
+                    Annulla
+                </button>
+                <button id="confirmModalAcceptBtn" class="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 transition-colors">
+                    Conferma
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-xs w-full pointer-events-none"></div>
+
+    <!-- APPLICATION LOGIC -->
+    <script>
+        /********************************************************************
+         * 1. CONSTANTS, THEME PALETTES & REALISTIC DEMO DATA
+         ********************************************************************/
+        const STORAGE_KEY = 'habitflow_it_dashboard_v1';
+        const DAYS_SHORT = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+        const DAYS_FULL = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+
+        // Color utility mapping for habit badges and check buttons
+        const COLOR_PALETTES = {
+            emerald: {
+                bgChecked: 'bg-emerald-500 border-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/25',
+                badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+                progress: 'bg-emerald-500',
+                hex: '#10b981'
+            },
+            indigo: {
+                bgChecked: 'bg-indigo-500 border-indigo-400 text-white shadow-lg shadow-indigo-500/25',
+                badge: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+                progress: 'bg-indigo-500',
+                hex: '#6366f1'
+            },
+            amber: {
+                bgChecked: 'bg-amber-500 border-amber-400 text-slate-950 shadow-lg shadow-amber-500/25',
+                badge: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+                progress: 'bg-amber-500',
+                hex: '#f59e0b'
+            },
+            cyan: {
+                bgChecked: 'bg-cyan-500 border-cyan-400 text-slate-950 shadow-lg shadow-cyan-500/25',
+                badge: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+                progress: 'bg-cyan-500',
+                hex: '#06b6d4'
+            },
+            rose: {
+                bgChecked: 'bg-rose-500 border-rose-400 text-white shadow-lg shadow-rose-500/25',
+                badge: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+                progress: 'bg-rose-500',
+                hex: '#f43f5e'
+            },
+            violet: {
+                bgChecked: 'bg-violet-500 border-violet-400 text-white shadow-lg shadow-violet-500/25',
+                badge: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
+                progress: 'bg-violet-500',
+                hex: '#8b5cf6'
+            }
+        };
+
+        /**
+         * Determines the default active day index (0 = Lun ... 6 = Dom).
+         * Uses the real current weekday, or defaults to Giovedì (3) if needed.
+         */
+        function getRealTodayIndex() {
+            const jsDay = new Date().getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+            return jsDay === 0 ? 6 : jsDay - 1;
+        }
+
+        /**
+         * Generates realistic pre-populated Italian habits so that charts and streaks
+         * are immediately engaging and populated across the week.
+         */
+        function getDefaultDemoHabits() {
+            return [
+                {
+                    id: 'hab-1',
+                    name: 'Allenamento / Sala Pesi',
+                    category: 'Fitness',
+                    icon: '🏋️',
+                    color: 'emerald',
+                    targetPerWeek: 4,
+                    priorStreak: 4, // consecutive days before Monday
+                    bestStreakRecord: 14,
+                    days: [true, true, true, false, true, false, false]
+                },
+                {
+                    id: 'hab-2',
+                    name: 'Obiettivo Macro & Creatina (5g)',
+                    category: 'Nutrizione',
+                    icon: '🥗',
+                    color: 'amber',
+                    targetPerWeek: 7,
+                    priorStreak: 9,
+                    bestStreakRecord: 16,
+                    days: [true, true, true, true, true, false, false]
+                },
+                {
+                    id: 'hab-3',
+                    name: 'Sessione di Studio (Deep Work)',
+                    category: 'Studio',
+                    icon: '📚',
+                    color: 'indigo',
+                    targetPerWeek: 5,
+                    priorStreak: 5,
+                    bestStreakRecord: 12,
+                    days: [true, true, true, true, false, false, false]
+                },
+                {
+                    id: 'hab-4',
+                    name: 'Esercizio Chitarra (30 min)',
+                    category: 'Musica',
+                    icon: '🎸',
+                    color: 'rose',
+                    targetPerWeek: 5,
+                    priorStreak: 2,
+                    bestStreakRecord: 9,
+                    days: [true, false, true, true, true, false, false]
+                },
+                {
+                    id: 'hab-5',
+                    name: 'Idratazione 2L Acqua',
+                    category: 'Benessere',
+                    icon: '💧',
+                    color: 'cyan',
+                    targetPerWeek: 7,
+                    priorStreak: 11,
+                    bestStreakRecord: 19,
+                    days: [true, true, true, true, true, false, false]
+                },
+                {
+                    id: 'hab-6',
+                    name: 'Lettura Serale & No Schermi',
+                    category: 'Mindfulness',
+                    icon: '🧘',
+                    color: 'violet',
+                    targetPerWeek: 6,
+                    priorStreak: 3,
+                    bestStreakRecord: 10,
+                    days: [true, true, false, true, true, false, false]
+                }
+            ];
+        }
+
+        /********************************************************************
+         * 2. APPLICATION STATE & STREAK CALCULATION ENGINE
+         ********************************************************************/
+        let appState = {
+            activeDayIndex: getRealTodayIndex(),
+            selectedCategory: 'all',
+            habits: []
+        };
+
+        let weeklyChartInstance = null;
+        let streakChartInstance = null;
+        let pendingConfirmAction = null;
+
+        /**
+         * Loads state from localStorage or initializes with demo data
+         */
+        function loadState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && Array.isArray(parsed.habits)) {
+                        appState.habits = parsed.habits;
+                        if (typeof parsed.activeDayIndex === 'number') {
+                            appState.activeDayIndex = parsed.activeDayIndex;
+                        }
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.warn('Impossibile leggere localStorage, uso dati demo:', err);
+            }
+            // Fallback to Demo Data
+            // If real today is early in the week (e.g. Mercoledì = 2), we keep activeDayIndex synced with real day
+            appState.activeDayIndex = getRealTodayIndex();
+            appState.habits = getDefaultDemoHabits();
+            saveState();
+        }
+
+        /**
+         * Saves current state to localStorage
+         */
+        function saveState() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                    activeDayIndex: appState.activeDayIndex,
+                    habits: appState.habits
+                }));
+            } catch (err) {
+                console.warn('Errore salvataggio in localStorage:', err);
+            }
+        }
+
+        /**
+         * Calculates the Current Streak ("Serie Attuale") and Effective Best Record ("Record")
+         * for a given habit based on `activeDayIndex` and `days` array.
+         *
+         * Logic:
+         * - We inspect up to the latest relevant day (either `activeDayIndex` or a later checked day in the week).
+         * - If `activeDayIndex` is checked, we count backwards from `activeDayIndex` (plus any consecutive checked days immediately following it).
+         * - If `activeDayIndex` is NOT checked yet, the streak is still alive from yesterday (`activeDayIndex - 1`) if yesterday was checked!
+         * - If the consecutive run reaches Monday (`index 0`) and Monday is `true`, we add `habit.priorStreak`.
+         */
+        function calculateHabitMetrics(habit) {
+            const todayIdx = appState.activeDayIndex;
+            const days = habit.days;
+
+            // Determine anchor day to count streak from
+            let anchor = todayIdx;
+            // If user also checked days after todayIdx consecutively, include them
+            while (anchor + 1 < 7 && days[anchor] && days[anchor + 1]) {
+                anchor++;
+            }
+
+            let currentStreak = 0;
+
+            if (days[anchor]) {
+                // Count backwards from anchor
+                let d = anchor;
+                while (d >= 0 && days[d]) {
+                    currentStreak++;
+                    d--;
+                }
+                // If streak reached Monday (d === -1), add priorStreak from previous week
+                if (d === -1) {
+                    currentStreak += (habit.priorStreak || 0);
+                }
+            } else if (todayIdx > 0 && days[todayIdx - 1]) {
+                // Today is not yet checked, count backwards from yesterday so user sees their active streak at risk
+                let d = todayIdx - 1;
+                while (d >= 0 && days[d]) {
+                    currentStreak++;
+                    d--;
+                }
+                if (d === -1) {
+                    currentStreak += (habit.priorStreak || 0);
+                }
+            } else if (todayIdx === 0 && !days[0]) {
+                // Monday not yet checked: show priorStreak if > 0
+                currentStreak = 0;
+            }
+
+            const completedThisWeek = days.filter(Boolean).length;
+            const bestRecord = Math.max(habit.bestStreakRecord || 0, currentStreak);
+            const targetReached = completedThisWeek >= habit.targetPerWeek;
+
+            return {
+                currentStreak,
+                bestRecord,
+                completedThisWeek,
+                targetReached
+            };
+        }
+
+        /********************************************************************
+         * 3. UI RENDERING FUNCTIONS
+         ********************************************************************/
+
+        /**
+         * Updates the formatted Italian date in the top header
+         */
+        function renderHeaderDate() {
+            const now = new Date();
+            const formatter = new Intl.DateTimeFormat('it-IT', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+            const formatted = formatter.format(now);
+            const capitalized = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+            document.getElementById('currentDateDisplay').textContent = `${capitalized} • Giorno selezionato: ${DAYS_FULL[appState.activeDayIndex]}`;
+            document.getElementById('activeDaySelect').value = String(appState.activeDayIndex);
+        }
+
+        /**
+         * Updates the 4 Overview Stats Cards at the top of the dashboard
+         */
+        function renderStatsCards() {
+            const habits = appState.habits;
+            const totalHabits = habits.length;
+            const todayIdx = appState.activeDayIndex;
+
+            // 1. Total Active Habits & Categories
+            const totalTargetWeekly = habits.reduce((acc, h) => acc + Number(h.targetPerWeek || 7), 0);
+            const uniqueCategories = new Set(habits.map(h => h.category)).size;
+            document.getElementById('statTotalHabits').textContent = totalHabits;
+            document.getElementById('statTotalTargetWeekly').textContent = `/ ${totalTargetWeekly} target sett.`;
+            document.getElementById('statCategoriesCount').textContent = `${uniqueCategories} ${uniqueCategories === 1 ? 'categoria' : 'categorie'}`;
+
+            // 2. Today's Completion Percentage
+            const completedToday = habits.filter(h => h.days[todayIdx]).length;
+            const todayPercent = totalHabits > 0 ? Math.round((completedToday / totalHabits) * 100) : 0;
+            document.getElementById('statTodayBadgeName').textContent = DAYS_SHORT[todayIdx];
+            document.getElementById('statTodayPercent').textContent = `${todayPercent}%`;
+            document.getElementById('statTodayFraction').textContent = `(${completedToday}/${totalHabits} completate)`;
+            document.getElementById('statTodayProgressBar').style.width = `${todayPercent}%`;
+
+            // 3. Longest Current Streak
+            let maxStreak = 0;
+            let leaderName = 'Nessuna serie attiva';
+            habits.forEach(h => {
+                const { currentStreak } = calculateHabitMetrics(h);
+                if (currentStreak > maxStreak) {
+                    maxStreak = currentStreak;
+                    leaderName = `${h.icon} ${h.name}`;
+                }
+            });
+            document.getElementById('statLongestStreak').textContent = `${maxStreak} ${maxStreak === 1 ? 'giorno' : 'giorni'}`;
+            document.getElementById('statLongestStreakHabit').textContent = leaderName;
+
+            // 4. Weekly Success Rate
+            const totalChecksWeek = habits.reduce((acc, h) => acc + h.days.filter(Boolean).length, 0);
+            const weeklyRate = totalTargetWeekly > 0 ? Math.min(100, Math.round((totalChecksWeek / totalTargetWeekly) * 100)) : 0;
+            document.getElementById('statWeeklySuccess').textContent = `${weeklyRate}%`;
+            document.getElementById('statWeeklyCheckCount').textContent = `${totalChecksWeek}/${totalTargetWeekly} target`;
+
+            const statusEl = document.getElementById('statWeeklyStatusText');
+            if (weeklyRate >= 85) {
+                statusEl.textContent = '🔥 Eccellente';
+                statusEl.className = 'font-semibold text-emerald-400';
+            } else if (weeklyRate >= 55) {
+                statusEl.textContent = '⚡ Ottimo ritmo';
+                statusEl.className = 'font-semibold text-violet-300';
+            } else {
+                statusEl.textContent = '🎯 Continua così';
+                statusEl.className = 'font-semibold text-amber-300';
+            }
+        }
+
+        /**
+         * Renders the Category Filter Pills dynamically
+         */
+        function renderCategoryFilters() {
+            const container = document.getElementById('categoryFilterContainer');
+            const categories = ['all', ...new Set(appState.habits.map(h => h.category))];
+
+            container.innerHTML = categories.map(cat => {
+                const isActive = appState.selectedCategory === cat;
+                const label = cat === 'all' ? 'Tutte' : cat;
+                return `
+                    <button data-category="${cat}" class="cat-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                        isActive 
+                            ? 'bg-indigo-600 text-white shadow-sm' 
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                    }">
+                        ${label}
+                    </button>
+                `;
+            }).join('');
+
+            container.querySelectorAll('.cat-filter-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    appState.selectedCategory = btn.getAttribute('data-category');
+                    renderCategoryFilters();
+                    renderHabitGrid();
+                });
+            });
+        }
+
+        /**
+         * Renders the Weekly Habit Grid (Header + Habit Rows)
+         */
+        function renderHabitGrid() {
+            const headerRow = document.getElementById('habitTableHeaderRow');
+            const tbody = document.getElementById('habitTableBody');
+            const emptyState = document.getElementById('emptyHabitsState');
+            const todayIdx = appState.activeDayIndex;
+
+            // 1. Render Table Header with Today Highlighted
+            let headerHTML = `
+                <th class="py-3.5 pl-6 pr-4 w-[290px]">Abitudine & Obiettivo</th>
+            `;
+            DAYS_SHORT.forEach((dayName, idx) => {
+                const isToday = idx === todayIdx;
+                headerHTML += `
+                    <th class="py-3.5 px-2 text-center w-14 cursor-pointer select-none transition-colors ${isToday ? 'today-col-highlight text-indigo-300' : 'hover:text-slate-200'}" 
+                        onclick="setActiveDay(${idx})" title="Imposta ${DAYS_FULL[idx]} come giorno attivo">
+                        <div class="flex flex-col items-center gap-0.5">
+                            <span>${dayName}</span>
+                            ${isToday ? '<span class="text-[9px] px-1.5 py-0.2 rounded-full bg-indigo-500 text-white font-extrabold tracking-tight">OGGI</span>' : '<span class="h-3.5"></span>'}
+                        </div>
+                    </th>
+                `;
+            });
+            headerHTML += `
+                <th class="py-3.5 px-4 text-center w-36">Progresso Sett.</th>
+                <th class="py-3.5 px-4 text-center w-36">Serie Attuale</th>
+                <th class="py-3.5 pl-2 pr-6 text-right w-16">Azioni</th>
+            `;
+            headerRow.innerHTML = headerHTML;
+
+            // 2. Filter Habits
+            const filteredHabits = appState.selectedCategory === 'all'
+                ? appState.habits
+                : appState.habits.filter(h => h.category === appState.selectedCategory);
+
+            if (filteredHabits.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            // 3. Render Rows
+            let goalsReachedCount = 0;
+            appState.habits.forEach(h => {
+                if (calculateHabitMetrics(h).targetReached) goalsReachedCount++;
+            });
+            document.getElementById('weeklyGoalCompletedSummary').textContent = 
+                `${goalsReachedCount} su ${appState.habits.length} obiettivi settimanali raggiunti`;
+
+            tbody.innerHTML = filteredHabits.map(habit => {
+                const palette = COLOR_PALETTES[habit.color] || COLOR_PALETTES.indigo;
+                const metrics = calculateHabitMetrics(habit);
+                const progressPct = Math.min(100, Math.round((metrics.completedThisWeek / habit.targetPerWeek) * 100));
+
+                const dayCells = habit.days.map((isChecked, dayIdx) => {
+                    const isToday = dayIdx === todayIdx;
+                    return `
+                        <td class="py-3.5 px-2 text-center ${isToday ? 'today-col-highlight' : ''}">
+                            <button type="button"
+                                onclick="toggleHabitDay('${habit.id}', ${dayIdx}, this)"
+                                aria-label="${habit.name} - ${DAYS_FULL[dayIdx]}"
+                                class="habit-check-btn w-9 h-9 rounded-xl border inline-flex items-center justify-center focus:outline-none ${
+                                    isChecked
+                                        ? palette.bgChecked
+                                        : isToday
+                                            ? 'bg-slate-900/90 border-indigo-500/50 text-transparent hover:border-indigo-400'
+                                            : 'bg-slate-900/60 border-slate-700/80 text-transparent hover:border-slate-500'
+                                }">
+                                <i data-lucide="check" class="w-4 h-4 stroke-[3] ${isChecked ? 'opacity-100' : 'opacity-0'}"></i>
+                            </button>
+                        </td>
+                    `;
+                }).join('');
+
+                return `
+                    <tr class="group hover:bg-slate-900/40 transition-colors">
+                        <!-- Habit Name & Category -->
+                        <td class="py-3.5 pl-6 pr-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-lg shrink-0 shadow-inner">
+                                    ${habit.icon}
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="font-semibold text-white truncate group-hover:text-indigo-200 transition-colors">
+                                        ${escapeHtml(habit.name)}
+                                    </div>
+                                    <div class="flex items-center gap-2 mt-0.5">
+                                        <span class="text-[10px] font-semibold px-2 py-0.2 rounded-md border ${palette.badge}">
+                                            ${escapeHtml(habit.category)}
+                                        </span>
+                                        <span class="text-[11px] text-slate-400">
+                                            Target: ${habit.targetPerWeek}g/sett
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+
+                        <!-- 7 Day Checkboxes -->
+                        ${dayCells}
+
+                        <!-- Weekly Target Progress -->
+                        <td class="py-3.5 px-4">
+                            <div class="flex flex-col gap-1.5">
+                                <div class="flex items-center justify-between text-xs">
+                                    <span class="font-semibold ${metrics.targetReached ? 'text-emerald-400' : 'text-slate-300'}">
+                                        ${metrics.completedThisWeek}/${habit.targetPerWeek} g
+                                    </span>
+                                    <span class="text-[11px] text-slate-400">${progressPct}%</span>
+                                </div>
+                                <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                    <div class="h-full ${palette.progress} transition-all duration-300 rounded-full" style="width: ${progressPct}%"></div>
+                                </div>
+                            </div>
+                        </td>
+
+                        <!-- Current Streak Badge -->
+                        <td class="py-3.5 px-4 text-center">
+                            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border ${
+                                metrics.currentStreak > 0 
+                                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-300' 
+                                    : 'bg-slate-900 border-slate-800 text-slate-500'
+                            }">
+                                <span class="${metrics.currentStreak >= 5 ? 'flame-glow' : ''}">🔥</span>
+                                <span class="font-bold text-xs">
+                                    ${metrics.currentStreak} ${metrics.currentStreak === 1 ? 'giorno' : 'giorni'}
+                                </span>
+                            </div>
+                            <div class="text-[10px] text-slate-500 mt-0.5">
+                                Record: ${metrics.bestRecord}g
+                            </div>
+                        </td>
+
+                        <!-- Delete Habit Action -->
+                        <td class="py-3.5 pl-2 pr-6 text-right">
+                            <button type="button"
+                                onclick="requestDeleteHabit('${habit.id}')"
+                                title="Elimina abitudine"
+                                class="p-2 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        /********************************************************************
+         * 4. INTERACTIVE CHARTS (Chart.js)
+         ********************************************************************/
+        function initOrUpdateCharts() {
+            const habits = appState.habits;
+            const totalHabits = habits.length;
+
+            // Data for Chart 1: Daily Completions across Lun - Dom
+            const dailyCounts = DAYS_SHORT.map((_, dayIdx) => {
+                return habits.filter(h => h.days[dayIdx]).length;
+            });
+            const dailyTargetLine = DAYS_SHORT.map(() => totalHabits);
+
+            // Highlight Today's bar in Chart 1
+            const barBackgrounds = DAYS_SHORT.map((_, idx) => 
+                idx === appState.activeDayIndex ? 'rgba(99, 102, 241, 0.92)' : 'rgba(99, 102, 241, 0.45)'
+            );
+            const barBorders = DAYS_SHORT.map((_, idx) => 
+                idx === appState.activeDayIndex ? '#818cf8' : '#6366f1'
+            );
+
+            const ctxWeekly = document.getElementById('weeklyProgressChart').getContext('2d');
+            if (weeklyChartInstance) {
+                weeklyChartInstance.data.datasets[0].data = dailyCounts;
+                weeklyChartInstance.data.datasets[0].backgroundColor = barBackgrounds;
+                weeklyChartInstance.data.datasets[0].borderColor = barBorders;
+                weeklyChartInstance.data.datasets[1].data = dailyTargetLine;
+                weeklyChartInstance.options.scales.y.max = Math.max(totalHabits + 1, 5);
+                weeklyChartInstance.update();
+            } else {
+                weeklyChartInstance = new Chart(ctxWeekly, {
+                    type: 'bar',
+                    data: {
+                        labels: DAYS_SHORT.map((d, i) => i === appState.activeDayIndex ? `${d} (Oggi)` : d),
+                        datasets: [
+                            {
+                                type: 'bar',
+                                label: 'Abitudini Completate',
+                                data: dailyCounts,
+                                backgroundColor: barBackgrounds,
+                                borderColor: barBorders,
+                                borderWidth: 1.5,
+                                borderRadius: 8,
+                                maxBarThickness: 42,
+                                order: 2
+                            },
+                            {
+                                type: 'line',
+                                label: 'Totale Abitudini Giorno',
+                                data: dailyTargetLine,
+                                borderColor: '#10b981',
+                                borderWidth: 2,
+                                borderDash: [6, 6],
+                                pointBackgroundColor: '#10b981',
+                                pointRadius: 3,
+                                tension: 0.2,
+                                fill: false,
+                                order: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                                titleColor: '#f8fafc',
+                                bodyColor: '#cbd5e1',
+                                borderColor: 'rgba(99, 102, 241, 0.4)',
+                                borderWidth: 1,
+                                padding: 12,
+                                callbacks: {
+                                    afterBody: function(context) {
+                                        const completed = context[0].raw;
+                                        const pct = totalHabits > 0 ? Math.round((completed / totalHabits) * 100) : 0;
+                                        return `Tasso giornaliero: ${pct}%`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: { color: '#94a3b8', font: { family: 'Inter', size: 12, weight: '600' } }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                max: Math.max(totalHabits + 1, 5),
+                                ticks: {
+                                    stepSize: 1,
+                                    color: '#64748b',
+                                    font: { family: 'Inter', size: 11 }
+                                },
+                                grid: { color: 'rgba(148, 163, 184, 0.08)' }
+                            }
+                        }
+                    }
+                });
+            }
+            // Keep X labels synced with active day
+            weeklyChartInstance.data.labels = DAYS_SHORT.map((d, i) => i === appState.activeDayIndex ? `${d} ★` : d);
+            weeklyChartInstance.update();
+
+            // Data for Chart 2: Horizontal Bar Chart (Current Streak vs Best Record)
+            const habitLabels = habits.map(h => {
+                const shortName = h.name.length > 20 ? h.name.slice(0, 19) + '…' : h.name;
+                return `${h.icon} ${shortName}`;
+            });
+            const currentStreaks = habits.map(h => calculateHabitMetrics(h).currentStreak);
+            const bestRecords = habits.map(h => calculateHabitMetrics(h).bestRecord);
+
+            const ctxStreak = document.getElementById('streakComparisonChart').getContext('2d');
+            if (streakChartInstance) {
+                streakChartInstance.data.labels = habitLabels;
+                streakChartInstance.data.datasets[0].data = currentStreaks;
+                streakChartInstance.data.datasets[1].data = bestRecords;
+                streakChartInstance.update();
+            } else {
+                streakChartInstance = new Chart(ctxStreak, {
+                    type: 'bar',
+                    data: {
+                        labels: habitLabels,
+                        datasets: [
+                            {
+                                label: 'Serie Attuale (giorni)',
+                                data: currentStreaks,
+                                backgroundColor: 'rgba(245, 158, 11, 0.88)',
+                                borderColor: '#fbbf24',
+                                borderWidth: 1,
+                                borderRadius: 6,
+                                barPercentage: 0.75
+                            },
+                            {
+                                label: 'Record Personale (giorni)',
+                                data: bestRecords,
+                                backgroundColor: 'rgba(71, 85, 105, 0.55)',
+                                borderColor: '#64748b',
+                                borderWidth: 1,
+                                borderRadius: 6,
+                                barPercentage: 0.75
+                            }
+                        ]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                                titleColor: '#f8fafc',
+                                bodyColor: '#cbd5e1',
+                                borderColor: 'rgba(245, 158, 11, 0.4)',
+                                borderWidth: 1,
+                                padding: 12
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(148, 163, 184, 0.08)' },
+                                ticks: {
+                                    color: '#64748b',
+                                    font: { family: 'Inter', size: 11 },
+                                    callback: (val) => `${val}g`
+                                }
+                            },
+                            y: {
+                                grid: { display: false },
+                                ticks: {
+                                    color: '#e2e8f0',
+                                    font: { family: 'Inter', size: 11, weight: '500' }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        /**
+         * Master render function that synchronizes UI & Charts
+         */
+        function renderAll() {
+            renderHeaderDate();
+            renderStatsCards();
+            renderCategoryFilters();
+            renderHabitGrid();
+            initOrUpdateCharts();
+        }
+
+        /********************************************************************
+         * 5. USER INTERACTIONS & EVENT HANDLERS
+         ********************************************************************/
+
+        /**
+         * Toggles a single day's completion for a habit
+         */
+        window.toggleHabitDay = function(habitId, dayIdx, btnElement) {
+            const habit = appState.habits.find(h => h.id === habitId);
+            if (!habit) return;
+
+            habit.days[dayIdx] = !habit.days[dayIdx];
+
+            // Update historical record if current streak surpasses it
+            const metrics = calculateHabitMetrics(habit);
+            if (metrics.currentStreak > (habit.bestStreakRecord || 0)) {
+                habit.bestStreakRecord = metrics.currentStreak;
+            }
+
+            saveState();
+            renderAll();
+
+            // Show celebratory feedback if user reached their weekly goal
+            if (habit.days[dayIdx] && metrics.completedThisWeek === Number(habit.targetPerWeek)) {
+                showToast(`🎯 Obiettivo settimanale raggiunto per "${habit.name}"!`, 'emerald');
+            }
+        };
+
+        /**
+         * Changes the active day of the week ("Oggi")
+         */
+        window.setActiveDay = function(dayIdx) {
+            appState.activeDayIndex = Number(dayIdx);
+            saveState();
+            renderAll();
+        };
+
+        /**
+         * Requests deletion of a habit using custom confirmation modal
+         */
+        window.requestDeleteHabit = function(habitId) {
+            const habit = appState.habits.find(h => h.id === habitId);
+            if (!habit) return;
+
+            openConfirmModal(
+                'Elimina Abitudine',
+                `Vuoi davvero rimuovere "${habit.name}" dalla tua dashboard settimanale?`,
+                () => {
+                    appState.habits = appState.habits.filter(h => h.id !== habitId);
+                    saveState();
+                    renderAll();
+                    showToast(`Abitudine "${habit.name}" rimossa.`, 'rose');
+                }
+            );
+        };
+
+        /**
+         * Custom Confirmation Modal helper
+         */
+        function openConfirmModal(title, message, onConfirm) {
+            document.getElementById('confirmModalTitle').textContent = title;
+            document.getElementById('confirmModalMessage').textContent = message;
+            pendingConfirmAction = onConfirm;
+            const modal = document.getElementById('confirmModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeConfirmModal() {
+            const modal = document.getElementById('confirmModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            pendingConfirmAction = null;
+        }
+
+        /**
+         * Custom Toast Notification
+         */
+        function showToast(message, variant = 'indigo') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const borderColors = {
+                emerald: 'border-emerald-500/50 bg-slate-900/95 text-emerald-200',
+                indigo: 'border-indigo-500/50 bg-slate-900/95 text-indigo-200',
+                rose: 'border-rose-500/50 bg-slate-900/95 text-rose-200',
+                amber: 'border-amber-500/50 bg-slate-900/95 text-amber-200'
+            };
+
+            toast.className = `pointer-events-auto px-4 py-3 rounded-xl border shadow-xl backdrop-blur-md text-xs font-semibold flex items-center justify-between gap-3 animate-pop ${borderColors[variant] || borderColors.indigo}`;
+            toast.innerHTML = `
+                <span>${escapeHtml(message)}</span>
+                <button class="text-slate-400 hover:text-white" onclick="this.parentElement.remove()">✕</button>
+            `;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.style.opacity = '0';
+                    toast.style.transition = 'opacity 0.25s ease';
+                    setTimeout(() => toast.remove(), 250);
+                }
+            }, 3400);
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        /********************************************************************
+         * 6. INITIALIZATION & DOM LISTENERS
+         ********************************************************************/
+        window.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            renderAll();
+
+            // Active Day Selector Change
+            document.getElementById('activeDaySelect').addEventListener('change', (e) => {
+                setActiveDay(Number(e.target.value));
+                showToast(`Giorno attivo impostato su ${DAYS_FULL[appState.activeDayIndex]}.`, 'indigo');
+            });
+
+            // Complete All Today Button
+            document.getElementById('completeAllTodayBtn').addEventListener('click', () => {
+                const todayIdx = appState.activeDayIndex;
+                let changed = 0;
+                appState.habits.forEach(h => {
+                    if (!h.days[todayIdx]) {
+                        h.days[todayIdx] = true;
+                        changed++;
+                    }
+                    const metrics = calculateHabitMetrics(h);
+                    if (metrics.currentStreak > (h.bestStreakRecord || 0)) {
+                        h.bestStreakRecord = metrics.currentStreak;
+                    }
+                });
+                saveState();
+                renderAll();
+                if (changed > 0) {
+                    showToast(`🔥 Tutte le abitudini di ${DAYS_FULL[todayIdx]} segnate come completate!`, 'emerald');
+                } else {
+                    showToast(`Hai già completato tutte le abitudini di ${DAYS_FULL[todayIdx]}!`, 'indigo');
+                }
+            });
+
+            // Reset Demo Data Button
+            document.getElementById('resetDemoBtn').addEventListener('click', () => {
+                openConfirmModal(
+                    'Ripristina Dati Demo',
+                    'Vuoi ripristinare le abitudini dimostrative predefinite? Le modifiche personalizzate verranno sostituite.',
+                    () => {
+                        appState.habits = getDefaultDemoHabits();
+                        appState.selectedCategory = 'all';
+                        saveState();
+                        renderAll();
+                        showToast('Dati demo ripristinati con successo!', 'amber');
+                    }
+                );
+            });
+
+            // Confirm Modal Buttons
+            document.getElementById('confirmModalCancelBtn').addEventListener('click', closeConfirmModal);
+            document.getElementById('confirmModalAcceptBtn').addEventListener('click', () => {
+                if (typeof pendingConfirmAction === 'function') {
+                    pendingConfirmAction();
+                }
+                closeConfirmModal();
+            });
+
+            // Add Habit Modal Open/Close
+            const addModal = document.getElementById('addHabitModal');
+            const openAddModal = () => {
+                addModal.classList.remove('hidden');
+                addModal.classList.add('flex');
+                document.getElementById('habitNameInput').focus();
+            };
+            const closeAddModal = () => {
+                addModal.classList.add('hidden');
+                addModal.classList.remove('flex');
+                document.getElementById('addHabitForm').reset();
+            };
+
+            document.getElementById('openAddModalBtn').addEventListener('click', openAddModal);
+            document.getElementById('emptyAddHabitBtn').addEventListener('click', openAddModal);
+            document.getElementById('closeAddModalBtn').addEventListener('click', closeAddModal);
+            document.getElementById('cancelAddModalBtn').addEventListener('click', closeAddModal);
+
+            // Auto-select matching emoji when category changes in modal
+            document.getElementById('habitCategoryInput').addEventListener('change', (e) => {
+                const map = {
+                    'Fitness': '🏋️',
+                    'Nutrizione': '🥗',
+                    'Studio': '📚',
+                    'Musica': '🎸',
+                    'Benessere': '💧',
+                    'Mindfulness': '🧘'
+                };
+                if (map[e.target.value]) {
+                    document.getElementById('habitIconInput').value = map[e.target.value];
+                }
+            });
+
+            // Submit Add Habit Form
+            document.getElementById('addHabitForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = document.getElementById('habitNameInput').value.trim();
+                if (!name) return;
+
+                const category = document.getElementById('habitCategoryInput').value;
+                const icon = document.getElementById('habitIconInput').value;
+                const targetPerWeek = Number(document.getElementById('habitTargetInput').value) || 7;
+                const color = document.getElementById('habitColorInput').value;
+
+                const newHabit = {
+                    id: 'hab-' + Date.now(),
+                    name,
+                    category,
+                    icon,
+                    color,
+                    targetPerWeek,
+                    priorStreak: 0,
+                    bestStreakRecord: 1,
+                    days: [false, false, false, false, false, false, false]
+                };
+
+                appState.habits.push(newHabit);
+                saveState();
+                renderAll();
+                closeAddModal();
+                showToast(`Nuova abitudine "${name}" aggiunta!`, 'emerald');
+            });
+        });
+    </script>
+</body>
+</html>
